@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Algaerithm | Urban Emission Intelligence</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background-color: #121212; color: #e0e0e0; overflow: hidden; }
+        
+        #landing-page { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: linear-gradient(135deg, #121212 0%, #1b3320 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; }
+        .portal-cards { display: flex; gap: 40px; margin-top: 40px; }
+        .portal-card { background: #1e1e1e; border: 2px solid #4CAF50; padding: 40px; border-radius: 12px; text-align: center; cursor: pointer; transition: 0.3s; width: 250px; }
+        .portal-card:hover { transform: translateY(-10px); background: #2d2d2d; box-shadow: 0 10px 20px rgba(76, 175, 80, 0.2); }
+        .portal-card h3 { color: #81c784; font-size: 24px; margin-top: 0; }
+        
+        .app-container { display: none; height: 100vh; width: 100%; }
+        .sidebar { width: 420px; padding: 20px; background: #1e1e1e; box-shadow: 2px 0 10px rgba(0,0,0,0.8); z-index: 1000; overflow-y: auto; display: flex; flex-direction: column; }
+        .map-container { flex-grow: 1; height: 100%; }
+        
+        h2 { color: #81c784; font-size: 20px; margin-top: 0; }
+        .input-group { margin-bottom: 15px; }
+        select { width: 100%; padding: 10px; border: 1px solid #444; border-radius: 4px; font-size: 14px; background: #2d2d2d; color: #fff; }
+        button { background-color: #4CAF50; color: white; border: none; padding: 12px 15px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; margin-bottom: 10px; transition: 0.3s; }
+        button:hover { background-color: #45a049; }
+        button.back-btn { background-color: #555; margin-bottom: 20px; }
+        button.back-btn:hover { background-color: #777; }
+        
+        .route-card { background: #2d2d2d; border: 1px solid #444; padding: 12px; margin-top: 10px; border-radius: 8px; font-size: 14px; }
+        .route-card.best { border: 2px solid #4CAF50; background: #1b3320; }
+        
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; color: white;}
+        .badge.low { background: #4CAF50; }
+        .badge.high { background: #f44336; }
+        .ai-label { font-size: 11px; color: #ccc; background: #444; padding: 2px 5px; border-radius: 4px; margin-top: 5px; display: inline-block;}
+        
+        .sensor-card { background: #1b3320; padding: 15px; border-radius: 8px; margin-top: 20px; border: 1px solid #2e7d32; transition: all 0.3s ease; }
+        .sensor-card.alert { border: 2px solid #f44336; background: #331a1a; }
+        .sensor-data { font-family: monospace; font-size: 14px; color: #a5d6a7; margin: 5px 0; }
+        video { width: 100%; border-radius: 8px; margin-top: 10px; border: 2px solid #f44336; display: none; }
+        
+        #chart-container { background: #2d2d2d; padding: 10px; border-radius: 8px; margin-top: 20px; border: 1px solid #444; flex-grow: 1; min-height: 250px; }
+        
+        .data-table { width: 100%; margin-top: 15px; border-collapse: collapse; font-size: 13px; text-align: left; }
+        .data-table th { padding: 8px; border-bottom: 1px solid #555; color: #81c784; }
+        .data-table td { padding: 8px; border-bottom: 1px solid #333; color: #ccc; }
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table td:nth-child(2) { color: #fff; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="landing-page">
+        <h1 style="color: white; font-size: 48px; margin-bottom: 10px;">Algaerithm</h1>
+        <p style="color: #81c784; font-size: 18px;">Urban Emission Intelligence Platform</p>
+        
+        <div class="portal-cards">
+            <div class="portal-card" onclick="openPortal('citizen')">
+                <h3>Citizen Portal</h3>
+                <p style="color: #aaa; font-size: 14px;">AI Route Optimizer & Edge Sensor Node</p>
+            </div>
+            <div class="portal-card" onclick="openPortal('official')">
+                <h3>Official Portal</h3>
+                <p style="color: #aaa; font-size: 14px;">City-Wide AQI Monitoring & Historical Analysis</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="citizen-portal" class="app-container">
+        <div class="sidebar">
+            <button class="back-btn" onclick="goHome()">← Back to Home</button>
+            <h2>Citizen Routing Engine</h2>
+            
+            <div class="input-group"><select id="source"></select></div>
+            <div class="input-group"><select id="destination"></select></div>
+            <button onclick="findRoutes()">Analyze AI Routes</button>
+            <div id="route-results"></div>
+
+            <div id="sensor-container" class="sensor-card">
+                <h2 style="font-size: 16px; color: #4CAF50;">Phase 1: Edge AI Node</h2>
+                <button id="sensor-btn" onclick="startSensing()" style="background-color: #2196F3;">Activate Acoustic Sensor</button>
+                <div id="sensor-display" style="display: none;">
+                    <p class="sensor-data">📍 Lat: <span id="lat">--</span>, Lng: <span id="lng">--</span></p>
+                    <p class="sensor-data">🔊 Audio Level: <span id="noise">--</span> dB</p>
+                    <p id="noise-timer" class="sensor-data" style="color: #FFeb3b; display: none; font-weight: bold; background: #443c10; padding: 5px; border-radius: 4px;">
+                        ⏱ Verifying Anomaly: <span id="timer-seconds">0</span>s / 5s
+                    </p>
+                    <p class="sensor-data" style="color: #FF9800;">🤖 AI: <span id="mobile-ai-status">Listening...</span></p>
+                    <p id="video-status" class="sensor-data" style="color: #f44336; font-weight: bold; display: none;">⚠ Threat Confirmed: Camera Active</p>
+                    <video id="camera-stream" autoplay playsinline></video>
+                </div>
+            </div>
+        </div>
+        <div id="citizen-map" class="map-container"></div>
+    </div>
+
+    <div id="official-portal" class="app-container">
+        <div class="sidebar">
+            <button class="back-btn" onclick="goHome()">← Back to Home</button>
+            <h2>Govt Command Center</h2>
+            <p style="color: #aaa; font-size: 13px;">Select a station on the map or from the list to view its 24-hour historical emission profile.</p>
+            
+            <div class="input-group">
+                <select id="station-select" onchange="fetchStationHistory(this.value)">
+                    <option value="">-- Select a Monitoring Station --</option>
+                </select>
+            </div>
+
+            <div id="station-details" style="display: none; margin-top: 10px;">
+                <h3 id="station-name" style="margin:0; color: #fff;"></h3>
+                
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Pollutant Marker</th>
+                            <th>Live Reading</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pollutant-table-body">
+                        </tbody>
+                </table>
+            </div>
+
+            <div id="chart-container">
+                <p id="chart-loading" style="text-align: center; color: #888; font-size: 12px; margin-top: 40px;">Select a station to load data</p>
+                <canvas id="aqiChart" style="display: none;"></canvas>
+            </div>
+        </div>
+        <div id="official-map" class="map-container"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let citizenMap, officialMap, aqiChartInstance;
+
+        function openPortal(portalName) {
+            document.getElementById('landing-page').style.display = 'none';
+            if (portalName === 'citizen') {
+                document.getElementById('citizen-portal').style.display = 'flex';
+                if (!citizenMap) initCitizenPortal();
+                else citizenMap.invalidateSize(); 
+            } else if (portalName === 'official') {
+                document.getElementById('official-portal').style.display = 'flex';
+                if (!officialMap) initOfficialPortal();
+                else officialMap.invalidateSize();
+            }
+        }
+
+        function goHome() {
+            document.getElementById('citizen-portal').style.display = 'none';
+            document.getElementById('official-portal').style.display = 'none';
+            document.getElementById('landing-page').style.display = 'flex';
+        }
+
+        const stations = [
+            { name: "Anand Vihar", lat: 28.6476, lng: 77.3158 },
+            { name: "Ashok Vihar", lat: 28.6953, lng: 77.1815 },
+            { name: "Aya Nagar", lat: 28.4720, lng: 77.1329 },
+            { name: "Bawana", lat: 28.7762, lng: 77.0511 },
+            { name: "Dwarka Sector 8", lat: 28.5803, lng: 77.0344 },
+            { name: "ITO", lat: 28.6284, lng: 77.2407 },
+            { name: "Jahangirpuri", lat: 28.7328, lng: 77.1706 },
+            { name: "Lodhi Road", lat: 28.5918, lng: 77.2273 },
+            { name: "Major Dhyan Chand Stadium", lat: 28.6119, lng: 77.2373 },
+            { name: "Mandir Marg", lat: 28.6335, lng: 77.1995 },
+            { name: "Najafgarh", lat: 28.6090, lng: 76.9855 },
+            { name: "Narela", lat: 28.8354, lng: 77.0911 },
+            { name: "Okhla Phase 2", lat: 28.5307, lng: 77.2764 },
+            { name: "Punjabi Bagh", lat: 28.6740, lng: 77.1310 },
+            { name: "RK Puram", lat: 28.5632, lng: 77.1869 },
+            { name: "Siri Fort", lat: 28.5515, lng: 77.2155 },
+            { name: "Sri Aurobindo Marg", lat: 28.5314, lng: 77.1901 },
+            { name: "Wazirpur", lat: 28.6997, lng: 77.1654 }
+        ];
+
+        function initOfficialPortal() {
+            officialMap = L.map('official-map').setView([28.6139, 77.2090], 11);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(officialMap);
+
+            const select = document.getElementById('station-select');
+            
+            stations.forEach((st, index) => {
+                select.add(new Option(st.name, index));
+                
+                const marker = L.marker([st.lat, st.lng]).addTo(officialMap);
+                marker.bindPopup(`<b>${st.name}</b><br>Click to view 24h history`);
+                
+                marker.on('click', () => {
+                    select.value = index;
+                    fetchStationHistory(index);
+                });
+            });
+        }
+
+        async function fetchStationHistory(stationIndex) {
+            if (stationIndex === "") return;
+            const st = stations[stationIndex];
+            
+            document.getElementById('chart-loading').style.display = 'block';
+            document.getElementById('chart-loading').innerText = `Fetching past 24h data for ${st.name}...`;
+            document.getElementById('aqiChart').style.display = 'none';
+            document.getElementById('station-details').style.display = 'none';
+
+            const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${st.lat}&longitude=${st.lng}&hourly=pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone&past_days=1&forecast_days=0`;
+            
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                const timestamps = data.hourly.time.slice(-24).map(t => new Date(t).getHours() + ":00");
+                const pm25Data = data.hourly.pm2_5.slice(-24);
+                const pm10Data = data.hourly.pm10.slice(-24);
+                const coData = data.hourly.carbon_monoxide.slice(-24);
+                const no2Data = data.hourly.nitrogen_dioxide.slice(-24);
+                const so2Data = data.hourly.sulphur_dioxide.slice(-24);
+                const o3Data = data.hourly.ozone.slice(-24);
+
+                document.getElementById('station-name').innerText = st.name;
+                
+                document.getElementById('pollutant-table-body').innerHTML = `
+                    <tr><td>PM2.5 (Fine Particulates)</td><td>${pm25Data[pm25Data.length - 1]} µg/m³</td></tr>
+                    <tr><td>PM10 (Dust/Construction)</td><td>${pm10Data[pm10Data.length - 1]} µg/m³</td></tr>
+                    <tr><td>NO₂ (Traffic Emissions)</td><td>${no2Data[no2Data.length - 1]} µg/m³</td></tr>
+                    <tr><td>CO (Carbon Monoxide)</td><td>${coData[coData.length - 1]} µg/m³</td></tr>
+                    <tr><td>SO₂ (Industrial)</td><td>${so2Data[so2Data.length - 1]} µg/m³</td></tr>
+                    <tr><td>O₃ (Ground Ozone)</td><td>${o3Data[o3Data.length - 1]} µg/m³</td></tr>
+                `;
+
+                document.getElementById('station-details').style.display = 'block';
+
+                document.getElementById('chart-loading').style.display = 'none';
+                document.getElementById('aqiChart').style.display = 'block';
+                
+                drawChart(timestamps, pm25Data, pm10Data, no2Data, coData, so2Data, o3Data);
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('chart-loading').innerText = "Failed to load data.";
+            }
+        }
+
+        function drawChart(labels, pm25, pm10, no2, co, so2, o3) {
+            const ctx = document.getElementById('aqiChart').getContext('2d');
+            if (aqiChartInstance) aqiChartInstance.destroy(); 
+
+            aqiChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'PM2.5', data: pm25, borderColor: '#4CAF50', backgroundColor: 'transparent', tension: 0.4 },
+                        { label: 'PM10', data: pm10, borderColor: '#FF9800', backgroundColor: 'transparent', borderDash: [5, 5], tension: 0.4 },
+                        { label: 'NO₂', data: no2, borderColor: '#F44336', backgroundColor: 'transparent', tension: 0.4 },
+                        { label: 'SO₂', data: so2, borderColor: '#00BCD4', backgroundColor: 'transparent', tension: 0.4 },
+                        { label: 'O₃', data: o3, borderColor: '#E91E63', backgroundColor: 'transparent', tension: 0.4 },
+                        { label: 'CO (Click to view)', data: co, borderColor: '#9C27B0', backgroundColor: 'transparent', tension: 0.4, hidden: true } 
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#444' }, ticks: { color: '#ccc' } },
+                        x: { grid: { display: false }, ticks: { color: '#ccc', maxTicksLimit: 8 } }
+                    },
+                    plugins: { 
+                        legend: { labels: { color: '#fff', boxWidth: 12, font: { size: 11 } } },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    interaction: { mode: 'nearest', axis: 'x', intersect: false }
+                }
+            });
+        }
+
+        
+        let routeLayers = [];
+        let startMarker, endMarker, mobileMarker; 
+        const geocodeCache = {};
+        let audioContext;
+        let isCameraTriggered = false; 
+
+        function initCitizenPortal() {
+            citizenMap = L.map('citizen-map').setView([28.6139, 77.2090], 11);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(citizenMap);
+
+            const locations = [
+                "North Campus", "Kashmere Gate", "India Gate", "Lal Quila", "Jama Masjid", "New Delhi Railway Station", 
+                "Connaught Place", "Rashtrapati Bhavan", "Airport", "Botanical Garden", "Supreme Court", "Kalkaji Temple", 
+                "Nehru Place", "Dilli Haat INA", "Hauz Khas", "AIIMS", "IIT Delhi", "JNU", "Jamia Millia Islamia", "Palam", 
+                "Sarojini Nagar", "Sultanpur", "Okhla", "Lajpat Nagar", "Khan Market", "Akshardham", "Noida", "Gurugram", 
+                "Rajouri Garden", "Dwarka", "Delhi Cantt", "Durgabai Deshmukh South Campus", "Nizamuddin Railway Station", 
+                "Najafgarh", "Wazirabad", "Ghazipur", "Narela", "Chhatarpur", "Karol Bagh", "Tis Hazari", "Tihar Jail", 
+                "Ashram", "Badarpur", "Tughlakabad", "Shaheen Bagh", "ITO Crossing", "Dhaula Kuan", "Anand Vihar ISBT", 
+                "Faridabad", "Mahipalpur", "Laxmi Nagar", "Shahdara", "Peera Garhi", "Janakpuri", "Uttam Nagar", "Old Rajinder Nagar", 
+                "RK Puram", "RK Ashram Marg", "Central Secretariat", "Barakhamba Road", "Sunder Nursery", "Pragati Maidan", 
+                "Chirag Delhi", "South Extension", "Green Park", "Saket", "Qutub Minar", "Inderlok", "Welcome", "Shalimar Bagh", 
+                "Badli", "Rohini", "Kirti Nagar", "Burari", "JLN Stadium", "Gole Market", "Arun Jaitley Stadium", "Chandni Chowk", 
+                "Punjabi Bagh", "Mukarba Chowk", "Daryaganj", "Seelampur", "Azadpur", "Madanpur Khadar", "Mandi House", 
+                "Yamuna Bank", "Mayur Vihar", "Sadar Bazar"
+            ].sort();
+            
+            const srcSelect = document.getElementById('source');
+            const destSelect = document.getElementById('destination');
+            locations.forEach(loc => {
+                srcSelect.add(new Option(loc + ", Delhi", loc + ", Delhi"));
+                destSelect.add(new Option(loc + ", Delhi", loc + ", Delhi"));
+            });
+            destSelect.selectedIndex = 6; 
+        }
+
+        async function geocode(query) {
+            if (geocodeCache[query]) return geocodeCache[query];
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&email=h_${Date.now()}@test.com`);
+            const data = await res.json();
+            if (data.length > 0) {
+                const coords = { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+                geocodeCache[query] = coords;
+                return coords;
+            }
+            return null;
+        }
+
+        async function findRoutes() {
+            try {
+                const btn = document.querySelector('button[onclick="findRoutes()"]');
+                btn.innerText = "Analyzing..."; btn.disabled = true;
+                
+                document.getElementById('route-results').innerHTML = "<p>Mapping locations...</p>";
+                routeLayers.forEach(layer => citizenMap.removeLayer(layer));
+                routeLayers = [];
+                if(startMarker) citizenMap.removeLayer(startMarker);
+                if(endMarker) citizenMap.removeLayer(endMarker);
+
+                const srcText = document.getElementById('source').value;
+                const destText = document.getElementById('destination').value;
+
+                const srcCoords = await geocode(srcText);
+                if(!geocodeCache[destText]) await new Promise(r => setTimeout(r, 1100)); 
+                const destCoords = await geocode(destText);
+
+                startMarker = L.marker([srcCoords.lat, srcCoords.lon]).addTo(citizenMap).bindPopup("<b>Source</b>");
+                endMarker = L.marker([destCoords.lat, destCoords.lon]).addTo(citizenMap).bindPopup("<b>Destination</b>");
+
+                const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${srcCoords.lon},${srcCoords.lat};${destCoords.lon},${destCoords.lat}?overview=full&geometries=geojson&alternatives=3`;
+                const data = await (await fetch(osrmUrl)).json();
+                
+                let evaluatedRoutes = [];
+                for (let i = 0; i < data.routes.length; i++) {
+                    const route = data.routes[i];
+                    const midPt = route.geometry.coordinates[Math.floor(route.geometry.coordinates.length / 2)];
+                    const riskData = await (await fetch(`http://127.0.0.1:5000/get_emission_risk?lat=${midPt[1]}&lng=${midPt[0]}`)).json();
+                    
+                    evaluatedRoutes.push({ routeData: route, riskScore: riskData.risk_score, riskLevel: riskData.risk_level, aiClass: riskData.ai_classification, pm25: riskData.factors.pm2_5 });
+                }
+
+                evaluatedRoutes.sort((a, b) => a.riskScore - b.riskScore);
+                let resultsHTML = "";
+
+                evaluatedRoutes.forEach((evalRoute, index) => {
+                    const isBest = index === 0;
+                    const layer = L.geoJSON(evalRoute.routeData.geometry, {
+                        style: { color: isBest ? '#4CAF50' : '#8B4513', weight: isBest ? 7 : 5, opacity: isBest ? 1.0 : 0.6 }
+                    }).addTo(citizenMap);
+                    routeLayers.push(layer);
+                    if (isBest) citizenMap.fitBounds(layer.getBounds());
+
+                    resultsHTML += `
+                        <div class="route-card ${isBest ? 'best' : ''}">
+                            <strong>${isBest ? '⭐ Recommended' : 'Alternative'} Route</strong><br>
+                            Risk: <span class="badge ${evalRoute.riskLevel.toLowerCase()}">${evalRoute.riskLevel} (${evalRoute.riskScore})</span><br>
+                            <span class="ai-label">🤖 AI: ${evalRoute.aiClass}</span>
+                        </div>
+                    `;
+                });
+                document.getElementById('route-results').innerHTML = resultsHTML;
+                btn.innerText = "Analyze AI Routes"; btn.disabled = false;
+            } catch (err) {
+                document.getElementById('route-results').innerHTML = `<p style='color:red;'>Error: ${err.message}</p>`;
+                document.querySelector('button[onclick="findRoutes()"]').innerText = "Analyze AI Routes";
+                document.querySelector('button[onclick="findRoutes()"]').disabled = false;
+            }
+        }
+
+        function triggerVisualVerification() {
+            if (isCameraTriggered) return; 
+            isCameraTriggered = true;
+            document.getElementById('sensor-container').classList.add('alert');
+            document.getElementById('video-status').style.display = 'block';
+            navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+                const vid = document.getElementById('camera-stream');
+                vid.srcObject = stream; vid.style.display = 'block';
+            });
+        }
+
+        function startSensing() {
+            document.getElementById('sensor-display').style.display = 'block';
+            document.getElementById('sensor-btn').innerText = "Node Active";
+            document.getElementById('sensor-btn').style.backgroundColor = "#4CAF50";
+
+            navigator.geolocation.watchPosition(pos => {
+                document.getElementById('lat').innerText = pos.coords.latitude.toFixed(5);
+                document.getElementById('lng').innerText = pos.coords.longitude.toFixed(5);
+                if(mobileMarker) citizenMap.removeLayer(mobileMarker);
+                mobileMarker = L.marker([pos.coords.latitude, pos.coords.longitude]).addTo(citizenMap);
+            });
+
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const analyser = audioContext.createAnalyser();
+                const scriptProcessor = audioContext.createScriptProcessor(2048, 1, 1);
+                analyser.smoothingTimeConstant = 0.8; analyser.fftSize = 1024;
+                audioContext.createMediaStreamSource(stream).connect(analyser);
+                analyser.connect(scriptProcessor); scriptProcessor.connect(audioContext.destination);
+
+                let lastSendTime = 0; let highNoiseStartTime = null;
+
+                scriptProcessor.onaudioprocess = function () {
+                    const array = new Uint8Array(analyser.frequencyBinCount);
+                    analyser.getByteFrequencyData(array);
+                    let fakeDb = Math.round((array.reduce((a, b) => a + b, 0) / array.length) + 40);
+                    document.getElementById('noise').innerText = fakeDb;
+
+                    const now = Date.now();
+                    if (fakeDb >= 100 && !isCameraTriggered) {
+                        if (!highNoiseStartTime) { highNoiseStartTime = now; document.getElementById('noise-timer').style.display = 'block'; }
+                        let secs = Math.floor((now - highNoiseStartTime) / 1000);
+                        document.getElementById('timer-seconds').innerText = secs;
+                        if (secs >= 5) {
+                            document.getElementById('mobile-ai-status').innerText = "Sustained Threat Detected";
+                            document.getElementById('noise-timer').style.display = 'none';
+                            triggerVisualVerification();
+                        }
+                    } else if (!isCameraTriggered) {
+                        highNoiseStartTime = null; document.getElementById('noise-timer').style.display = 'none';
+                    }
+
+                    if (now - lastSendTime > 5000) {
+                        lastSendTime = now;
+                        const lat = document.getElementById('lat').innerText, lng = document.getElementById('lng').innerText;
+                        if (lat !== "--") {
+                            fetch("http://127.0.0.1:5000/ingest_sensor_data", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({lat: parseFloat(lat), lng: parseFloat(lng), noise_db: fakeDb}) });
+                            if (!isCameraTriggered) {
+                                fetch(`http://127.0.0.1:5000/get_emission_risk?lat=${lat}&lng=${lng}&noise_db=${fakeDb}`).then(r => r.json()).then(d => document.getElementById('mobile-ai-status').innerText = d.ai_classification);
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
